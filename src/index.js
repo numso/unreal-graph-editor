@@ -41,7 +41,7 @@ function getIntersectingNodes(nodes, [x0, y0, x1, y1], x, y) {
   const boxDimensions = [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)]
   return nodes
     .filter(node => {
-      const nodeDimensions = [node.x + x, node.y + y, node.x + x + 170, node.y + y + 100]
+      const nodeDimensions = [node.x + x, node.y + y, node.x + x + node.w, node.y + y + node.h]
       return intersects(boxDimensions, nodeDimensions)
     })
     .map(node => node.id)
@@ -117,6 +117,11 @@ function App() {
           details={node}
           x={x}
           y={y}
+          updateDimensions={(w, h) => {
+            node.w = w
+            node.h = h
+            setNodes(nodes)
+          }}
           updateXY={(x, y) => {
             node.x = x
             node.y = y

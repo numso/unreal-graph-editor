@@ -77,10 +77,12 @@ const Edge = ({ type, label, input }) => {
 
 const SIZE = 16
 
-export default function Node({ details, x, y, updateXY, selected, select }) {
+export default function Node({ details, x, y, updateXY, updateDimensions, selected, select }) {
+  const ref = useRef(null)
   const [x1, y1, setPosition, buttonHeld, mouseDownHandler] = useDragXY(0, [details.x, details.y], false, select)
   const gridX = Math.round(x1 / SIZE) * SIZE
   const gridY = Math.round(y1 / SIZE) * SIZE
+  useEffect(() => updateDimensions(ref.current.offsetWidth, ref.current.offsetHeight), [])
   useEffect(
     () => {
       if (!buttonHeld && (details.x !== x1 || details.y !== y1)) {
@@ -91,7 +93,7 @@ export default function Node({ details, x, y, updateXY, selected, select }) {
     [buttonHeld]
   )
   return (
-    <InnerBox onMouseDown={mouseDownHandler} x={gridX + x} y={gridY + y} selected={selected} onClick={select}>
+    <InnerBox ref={ref} onMouseDown={mouseDownHandler} x={gridX + x} y={gridY + y} selected={selected} onClick={select}>
       <Header color={details.type.color}>{details.type.name}</Header>
       <Flex>
         <Edges>
