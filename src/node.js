@@ -78,9 +78,7 @@ const Edge = ({ type, label, input }) => {
 const SIZE = 16
 
 export default function Node({ details, x, y, updateXY, selected, select }) {
-  const ref = useRef(null)
-  // this isn't re-run when ref is set...
-  const [x1, y1, setPosition, buttonHeld] = useDragXY(1, [details.x, details.y], ref.current, select)
+  const [x1, y1, setPosition, buttonHeld, mouseDownHandler] = useDragXY(0, [details.x, details.y], false, select)
   const gridX = Math.round(x1 / SIZE) * SIZE
   const gridY = Math.round(y1 / SIZE) * SIZE
   useEffect(
@@ -93,7 +91,7 @@ export default function Node({ details, x, y, updateXY, selected, select }) {
     [buttonHeld]
   )
   return (
-    <InnerBox ref={ref} x={gridX + x} y={gridY + y} selected={selected} onClick={select}>
+    <InnerBox onMouseDown={mouseDownHandler} x={gridX + x} y={gridY + y} selected={selected} onClick={select}>
       <Header color={details.type.color}>{details.type.name}</Header>
       <Flex>
         <Edges>

@@ -5,7 +5,7 @@ import useMouseButtonHeld from './mouse-button-held'
 export default function useBoxDrag() {
   const [positions, setPositions] = useState([0, 0, 0, 0])
   const [selectionMode, setSelectionMode] = useState('normal')
-  const buttonHeld = useMouseButtonHeld(1, e => {
+  const [buttonHeld] = useMouseButtonHeld(0, true, e => {
     if (e.ctrlKey) setSelectionMode('xor')
     else if (e.shiftKey) setSelectionMode('add')
     else setSelectionMode('normal')

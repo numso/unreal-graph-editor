@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 
 import useMouseButtonHeld from './mouse-button-held'
 
-export default function useDragXY(which, initial, target, onMouseMove) {
+export default function useDragXY(button, initial, bindToWindow, onMouseMove) {
   const [[x0, y0], setInitialPosition] = useState([0, 0])
   const [[x, y], setPosition] = useState(initial)
-  const buttonHeld = useMouseButtonHeld(which, e => setInitialPosition([e.clientX, e.clientY]), target)
+  const [buttonHeld, mouseDownHandler] = useMouseButtonHeld(button, bindToWindow, e => setInitialPosition([e.clientX, e.clientY]))
   useEffect(
     () => {
       if (buttonHeld) {
@@ -20,5 +20,5 @@ export default function useDragXY(which, initial, target, onMouseMove) {
     },
     [buttonHeld]
   )
-  return [x, y, setPosition, buttonHeld]
+  return [x, y, setPosition, buttonHeld, mouseDownHandler]
 }
