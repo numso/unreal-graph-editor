@@ -58,7 +58,7 @@ function getNextSelected(nodesToAdd, selected, selectionMode) {
 
 function App() {
   const [nodes, setNodes] = useState([{ id: 1, x: 0, y: 0, type: nodeTypes.branch }, { id: 2, x: 272, y: 64, type: nodeTypes.branch }])
-  const [x, y, , rightButtonHeld] = useDragXY(3, [270, 270])
+  const [x, y, , rightButtonHeld] = useDragXY(2, [270, 270], true)
   const [boxDimensions, leftButtonHeld, selectionMode] = useBoxDrag()
   const [selected, setSelected] = useState([])
   useEffect(
