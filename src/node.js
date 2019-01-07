@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import styled from 'styled-components'
-import useDragXY from './hooks/drag-xy'
+
+import mouseState from './mouse-state'
 
 const InnerBox = styled.div.attrs(({ x, y }) => ({
   style: { left: `${x}px`, top: `${y}px` }
@@ -75,25 +76,31 @@ const Edge = ({ type, label, input }) => {
   )
 }
 
-const SIZE = 16
-
-export default function Node({ details, x, y, updateXY, updateDimensions, selected, select }) {
+export default function Node({ details, x, y, updateDimensions, selected }) {
   const ref = useRef(null)
-  const [x1, y1, setPosition, buttonHeld, mouseDownHandler] = useDragXY(0, [details.x, details.y], false, select)
-  const gridX = Math.round(x1 / SIZE) * SIZE
-  const gridY = Math.round(y1 / SIZE) * SIZE
   useEffect(() => updateDimensions(ref.current.offsetWidth, ref.current.offsetHeight), [])
-  useEffect(
-    () => {
-      if (!buttonHeld && (details.x !== x1 || details.y !== y1)) {
-        updateXY(gridX, gridY)
-        setPosition([gridX, gridY])
-      }
-    },
-    [buttonHeld]
-  )
   return (
-    <InnerBox ref={ref} onMouseDown={mouseDownHandler} x={gridX + x} y={gridY + y} selected={selected} onClick={select}>
+    <InnerBox
+      ref={ref}
+      onMouseDown={e => {
+        mouseState[e.button] = {
+          startNodeId: details.id,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          startX: e.clientX,
+          startY: e.clientY,
+          endX: e.clientX,
+          endY: e.clientY
+        }
+      }}
+      onMouseUp={e => {
+        if (!mouseState[e.button]) return
+        mouseState[e.button].endNodeId = details.id
+      }}
+      x={details.x + x}
+      y={details.y + y}
+      selected={selected}
+    >
       <Header color={details.type.color}>{details.type.name}</Header>
       <Flex>
         <Edges>
