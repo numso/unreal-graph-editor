@@ -40,6 +40,10 @@ const EdgeWrapper = styled.div`
   padding: 5px 0;
   margin: 5px 0;
   color: white;
+
+  &:hover {
+    background: #ffffff44;
+  }
 `
 
 const Circle = styled.div`
@@ -63,11 +67,31 @@ const EdgeHook = styled.div`
   align-items: center;
 `
 
-const Edge = ({ type, label, input }) => {
+const Edge = ({ id, type, label, input, updateEdge, filled }) => {
+  const ref = useRef(null)
+  useEffect(() => {
+    updateEdge(draftEdge => {
+      draftEdge.__top = ref.current.offsetTop + 14
+      draftEdge.__left = ref.current.offsetLeft + (input ? 7 : ref.current.offsetWidth - 13)
+    })
+  }, [])
   return (
-    <EdgeWrapper input={input}>
+    <EdgeWrapper
+      ref={ref}
+      input={input}
+      onMouseDown={e => {
+        mouseState[e.button] = mouseState[e.button] || {}
+        mouseState[e.button].startedOn = mouseState[e.button].startedOn || (input ? 'inputEdge' : 'outputEdge')
+        mouseState[e.button].startEdgeId = id
+      }}
+      onMouseUp={e => {
+        mouseState[e.button] = mouseState[e.button] || {}
+        mouseState[e.button].endedOn = mouseState[e.button].endedOn || (input ? 'inputEdge' : 'outputEdge')
+        mouseState[e.button].endEdgeId = id
+      }}
+    >
       <EdgeHook>
-        <Circle color={type.color} filled={false} />
+        <Circle color={type.color} filled={filled} />
         <Triangle color={type.color} />
       </EdgeHook>
       <div>{label}</div>
@@ -76,25 +100,25 @@ const Edge = ({ type, label, input }) => {
   )
 }
 
-export default function Node({ details, x, y, updateDimensions, selected }) {
+export default function Node({ details, x, y, updateNode, selected, edges }) {
   const ref = useRef(null)
-  useEffect(() => updateDimensions(ref.current.offsetWidth, ref.current.offsetHeight), [])
+  useEffect(() => {
+    updateNode(draftNode => {
+      draftNode.__width = ref.current.offsetWidth
+      draftNode.__height = ref.current.offsetHeight
+    })
+  }, [])
   return (
     <InnerBox
       ref={ref}
       onMouseDown={e => {
-        mouseState[e.button] = {
-          startNodeId: details.id,
-          ctrlKey: e.ctrlKey,
-          shiftKey: e.shiftKey,
-          startX: e.clientX,
-          startY: e.clientY,
-          endX: e.clientX,
-          endY: e.clientY
-        }
+        mouseState[e.button] = mouseState[e.button] || {}
+        mouseState[e.button].startedOn = mouseState[e.button].startedOn || 'node'
+        mouseState[e.button].startNodeId = details.id
       }}
       onMouseUp={e => {
-        if (!mouseState[e.button]) return
+        mouseState[e.button] = mouseState[e.button] || {}
+        mouseState[e.button].endedOn = mouseState[e.button].endedOn || 'node'
         mouseState[e.button].endNodeId = details.id
       }}
       x={details.x + x}
@@ -104,13 +128,34 @@ export default function Node({ details, x, y, updateDimensions, selected }) {
       <Header color={details.type.color}>{details.type.name}</Header>
       <Flex>
         <Edges>
-          {details.type.inputs.map((input, i) => (
-            <Edge input {...input} key={i} />
+          {details.type.inputs.map(input => (
+            <Edge
+              input
+              {...input}
+              filled={edges.find(a => a.toNode === details.id && a.toEdge === input.id)}
+              updateEdge={update => {
+                updateNode(draftNode => {
+                  const edge = draftNode.type.inputs.find(a => a.id === input.id)
+                  update(edge)
+                })
+              }}
+              key={input.id}
+            />
           ))}
         </Edges>
         <Edges>
-          {details.type.outputs.map((output, i) => (
-            <Edge {...output} key={i} />
+          {details.type.outputs.map(output => (
+            <Edge
+              {...output}
+              filled={edges.find(a => a.fromNode === details.id && a.fromEdge === output.id)}
+              updateEdge={update => {
+                updateNode(draftNode => {
+                  const edge = draftNode.type.outputs.find(a => a.id === output.id)
+                  update(edge)
+                })
+              }}
+              key={output.id}
+            />
           ))}
         </Edges>
       </Flex>
