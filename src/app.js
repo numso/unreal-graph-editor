@@ -55,6 +55,7 @@ const SIZE = 16
 export default function App() {
   const [, forceUpdate] = useState(0)
   const [[_x, _y], setPosition] = useState([270, 270])
+  const [potentialCreation, setPotentialCreation] = useState(null)
   const [nodes, updateNodes] = useImmer([{ id: 'n1', x: 0, y: 0, type: nodeTypes.branch }, { id: 'n2', x: 272, y: 64, type: nodeTypes.branch }])
   const [edges, updateEdges] = useImmer([{ id: 'e1', fromNode: 'n1', fromEdge: 'true', toNode: 'n2', toEdge: 'execution' }])
   let x = _x
@@ -98,6 +99,7 @@ export default function App() {
         mouseState[e.button].endX = e.clientX
         mouseState[e.button].endY = e.clientY
         if (mouseState[e.button].startedOn === 'window' && e.button === 0 && !e.ctrlKey && !e.shiftKey) setSelected([])
+        if (potentialCreation) setPotentialCreation(null)
         forceUpdate(Math.random())
       }}
       onMouseMove={e => {
@@ -126,6 +128,7 @@ export default function App() {
       onMouseUp={e => {
         if (!mouseState[e.button]) return
         const state = mouseState[e.button]
+        state.endedOn = state.endedOn || 'window'
         if (e.button === 0) {
           if (state.dragging) {
             function createEdge(fromNode, fromEdge, toNode, toEdge) {
@@ -134,10 +137,11 @@ export default function App() {
               const e1 = nodes.find(a => a.id === fromNode).type.outputs.find(a => a.id === fromEdge)
               const e2 = nodes.find(a => a.id === toNode).type.inputs.find(a => a.id === toEdge)
               if (e1.type.type !== e2.type.type) return
-              if (!e1.multiple && edges.find(a => a.fromNode === fromNode && a.fromEdge === fromEdge)) return
-              if (!e2.multiple && edges.find(a => a.toNode === toNode && a.toEdge === toEdge)) return
               updateEdges(draftEdges => {
+                if (!e1.multiple) draftEdges = draftEdges.filter(a => a.fromNode !== fromNode || a.fromEdge !== fromEdge)
+                if (!e2.multiple) draftEdges = draftEdges.filter(a => a.toNode !== toNode || a.toEdge !== toEdge)
                 draftEdges.push({ id: `e${Math.floor(Math.random() * 999)}`, fromNode, fromEdge, toNode, toEdge })
+                return draftEdges
               })
             }
             if (state.startedOn === 'node') {
@@ -154,13 +158,15 @@ export default function App() {
               if (state.endedOn === 'inputEdge') {
                 createEdge(state.startNodeId, state.startEdgeId, state.endNodeId, state.endEdgeId)
               } else if (state.endedOn === 'window') {
-                // TODO:: show context menu (filtered) for creating a new node
+                const inType = nodes.find(a => a.id === state.startNodeId).type.outputs.find(a => a.id === state.startEdgeId).type.type
+                setPotentialCreation({ x: state.endX, y: state.endY, fromNode: state.startNodeId, fromEdge: state.startEdgeId, inType })
               }
             } else if (state.startedOn === 'inputEdge') {
               if (state.endedOn === 'outputEdge') {
                 createEdge(state.endNodeId, state.endEdgeId, state.startNodeId, state.startEdgeId)
               } else if (state.endedOn === 'window') {
-                // TODO:: show context menu (filtered) for creating a new node
+                const outType = nodes.find(a => a.id === state.startNodeId).type.inputs.find(a => a.id === state.startEdgeId).type.type
+                setPotentialCreation({ x: state.endX, y: state.endY, toNode: state.startNodeId, toEdge: state.startEdgeId, outType })
               }
             }
           } else {
@@ -178,9 +184,7 @@ export default function App() {
         }
         if (e.button === 2) {
           if (state.dragging) setPosition([x, y])
-          else if (state.endedOn === 'window') {
-            // TODO:: show context menu for creating a new node
-          }
+          else if (state.endedOn === 'window') setPotentialCreation({ x: state.endX, y: state.endY })
         }
         mouseState[e.button] = null
         forceUpdate(Math.random())
@@ -222,7 +226,75 @@ export default function App() {
         />
       ))}
       {lmb && !lmb.startNodeId && <Box dimensions={boxDimensions} />}
+      {potentialCreation && (
+        <CreationDialog
+          {...potentialCreation}
+          create={(node, edge) => {
+            setPotentialCreation(null)
+            updateNodes(draftNodes => {
+              node.x = Math.round((node.x - x) / SIZE) * SIZE
+              node.y = Math.round((node.y - y) / SIZE) * SIZE
+              draftNodes.push(node)
+            })
+            if (edge) {
+              const e1 = [...nodes, node].find(a => a.id === edge.fromNode).type.outputs.find(a => a.id === edge.fromEdge)
+              const e2 = [...nodes, node].find(a => a.id === edge.toNode).type.inputs.find(a => a.id === edge.toEdge)
+              updateEdges(draftEdges => {
+                if (!e1.multiple) draftEdges = draftEdges.filter(a => a.fromNode !== edge.fromNode || a.fromEdge !== edge.fromEdge)
+                if (!e2.multiple) draftEdges = draftEdges.filter(a => a.toNode !== edge.toNode || a.toEdge !== edge.toEdge)
+                draftEdges.push(edge)
+                return draftEdges
+              })
+            }
+          }}
+        />
+      )}
     </Wrapper>
+  )
+}
+
+const Dialog = styled.div`
+  background: white;
+  box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  left: ${props => props.x}px;
+  top: ${props => props.y}px;
+`
+
+const nodeTypeKeys = Object.keys(nodeTypes)
+function CreationDialog({ x, y, fromNode, fromEdge, toNode, toEdge, inType, outType, create }) {
+  let nodeKeys = nodeTypeKeys
+  if (inType) {
+    nodeKeys = nodeKeys.filter(a => nodeTypes[a].inputs.find(a => a.type.type === inType))
+  }
+  if (outType) {
+    nodeKeys = nodeKeys.filter(a => nodeTypes[a].outputs.find(a => a.type.type === outType))
+  }
+  return (
+    <Dialog x={x} y={y} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()}>
+      <ul>
+        {nodeKeys.map(key => (
+          <li
+            key={key}
+            onClick={() => {
+              const node = { id: `n${Math.floor(Math.random() * 999)}`, x, y, type: nodeTypes[key] }
+              let edge
+              if (fromNode) {
+                const toEdge = node.type.inputs.find(a => a.type.type === inType).id
+                edge = { id: `e${Math.floor(Math.random() * 999)}`, fromNode, fromEdge, toNode: node.id, toEdge }
+              }
+              if (toNode) {
+                const fromEdge = node.type.outputs.find(a => a.type.type === outType).id
+                edge = { id: `e${Math.floor(Math.random() * 999)}`, toNode, toEdge, fromNode: node.id, fromEdge }
+              }
+              create(node, edge)
+            }}
+          >
+            {nodeTypes[key].name}
+          </li>
+        ))}
+      </ul>
+    </Dialog>
   )
 }
 
